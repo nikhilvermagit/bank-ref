@@ -1,0 +1,557 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.impute import SimpleImputer
+import warnings
+warnings.filterwarnings('ignore')
+
+# Assuming you've uploaded your data or have it available
+# If you have uploaded a file, use:
+# df = pd.read_csv('your_file.csv')
+
+# For demonstration, I'll create sample data similar to what you described
+np.random.seed(42)
+n_samples = 1000
+
+# Create sample data
+data = {
+    'loan_status': np.random.choice([0, 1], size=n_samples, p=[0.7, 0.3]),  # Target variable (0=no default, 1=default)
+    'region': np.random.choice(['North', 'South', 'East', 'West', 'Central'], size=n_samples),
+    'country': np.random.choice(['USA', 'Canada', 'UK', 'Germany', 'France', 'Spain', 'Italy'], size=n_samples),
+    'loan_amount': np.random.lognormal(mean=10, sigma=1, size=n_samples),
+    'interest_rate': np.random.uniform(1, 15, n_samples),
+    'loan_term': np.random.choice([12, 24, 36, 48, 60], size=n_samples),
+    'emissions': np.random.lognormal(mean=3, sigma=1, size=n_samples),
+    'electricity_use': np.random.lognormal(mean=5, sigma=1.5, size=n_samples),
+    'credit_score': np.random.normal(loc=650, scale=100, size=n_samples),
+    'income': np.random.lognormal(mean=11, sigma=0.5, size=n_samples)
+}
+
+# Introduce some missing values
+for col in ['emissions', 'electricity_use', 'credit_score', 'income']:
+    missing_indices = np.random.choice(range(n_samples), size=int(n_samples * 0.2), replace=False)
+    data[col] = pd.Series(data[col])
+    data[col].iloc[missing_indices] = np.nan
+
+df = pd.DataFrame(data)
+
+# Display basic information about the dataset
+print("Dataset Shape:", df.shape)
+print("\nFirst 5 rows:")
+print(df.head())
+
+print("\nData Information:")
+print(df.info())
+
+print("\nDescriptive Statistics:")
+print(df.describe())
+
+# Check for missing values
+print("\nMissing Values:")
+missing_values = df.isnull().sum()
+missing_percent = (missing_values / len(df)) * 100
+missing_df = pd.DataFrame({'Missing Count': missing_values, 'Percent Missing': missing_percent})
+print(missing_df[missing_df['Missing Count'] > 0])
+
+# Basic visualizations
+plt.figure(figsize=(12, 6))
+
+# Target variable distribution
+plt.subplot(2, 3, 1)
+sns.countplot(x='loan_status', data=df)
+plt.title('Loan Default Distribution')
+
+# Region distribution
+plt.subplot(2, 3, 2)
+sns.countplot(y='region', data=df, order=df['region'].value_counts().index)
+plt.title('Region Distribution')
+
+# Loan amount distribution
+plt.subplot(2, 3, 3)
+sns.histplot(df['loan_amount'], bins=30, kde=True)
+plt.title('Loan Amount Distribution')
+
+# Interest rate distribution
+plt.subplot(2, 3, 4)
+sns.histplot(df['interest_rate'], bins=20, kde=True)
+plt.title('Interest Rate Distribution')
+
+# Loan term distribution
+plt.subplot(2, 3, 5)
+sns.countplot(x='loan_term', data=df)
+plt.title('Loan Term Distribution')
+
+plt.tight_layout()
+plt.show()
+
+# Correlation matrix
+plt.figure(figsize=(12, 10))
+numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
+corr_matrix = df[numeric_cols].corr()
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Correlation Matrix')
+plt.show()
+
+# Looking at loan status with respect to other features
+plt.figure(figsize=(15, 10))
+
+# Default rate by region
+plt.subplot(2, 2, 1)
+region_default = df.groupby('region')['loan_status'].mean().sort_values(ascending=False)
+sns.barplot(x=region_default.index, y=region_default.values)
+plt.title('Default Rate by Region')
+plt.ylabel('Default Rate')
+plt.xticks(rotation=45)
+
+# Default rate by country
+plt.subplot(2, 2, 2)
+country_default = df.groupby('country')['loan_status'].mean().sort_values(ascending=False)
+sns.barplot(x=country_default.index, y=country_default.values)
+plt.title('Default Rate by Country')
+plt.ylabel('Default Rate')
+plt.xticks(rotation=45)
+
+# Loan amount vs default status
+plt.subplot(2, 2, 3)
+sns.boxplot(x='loan_status', y='loan_amount', data=df)
+plt.title('Loan Amount vs Default Status')
+
+# Interest rate vs default status
+plt.subplot(2, 2, 4)
+sns.boxplot(x='loan_status', y='interest_rate', data=df)
+plt.title('Interest Rate vs Default Status')
+
+plt.tight_layout()
+plt.show()
+
+
+#2
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as stats
+
+# Continue with the same dataframe from previous code
+# If you're running this separately, recreate or load your data first
+
+# 1. Group analysis by region and loan status
+print("=== Region Analysis ===")
+region_analysis = df.groupby('region').agg({
+    'loan_status': ['mean', 'count'],
+    'loan_amount': ['mean', 'median', 'std'],
+    'interest_rate': ['mean', 'median'],
+    'emissions': ['mean', 'median'],
+    'electricity_use': ['mean', 'median']
+})
+print(region_analysis)
+
+# 2. Group analysis by country
+print("\n=== Country Analysis ===")
+country_analysis = df.groupby('country').agg({
+    'loan_status': ['mean', 'count'],
+    'loan_amount': ['mean', 'median', 'std'],
+    'interest_rate': ['mean', 'median'],
+    'emissions': ['mean', 'median'],
+    'electricity_use': ['mean', 'median']
+})
+print(country_analysis)
+
+# 3. Group by loan term and analyze default rates
+print("\n=== Loan Term Analysis ===")
+term_analysis = df.groupby('loan_term').agg({
+    'loan_status': ['mean', 'count'],
+    'loan_amount': ['mean', 'median'],
+    'interest_rate': ['mean']
+}).sort_values(('loan_status', 'mean'), ascending=False)
+print(term_analysis)
+
+# 4. Binning continuous variables for better insights
+# Create bins for loan amount
+loan_bins = [0, 10000, 25000, 50000, 100000, float('inf')]
+loan_labels = ['Very Small', 'Small', 'Medium', 'Large', 'Very Large']
+df['loan_amount_category'] = pd.cut(df['loan_amount'], bins=loan_bins, labels=loan_labels)
+
+# Create bins for interest rate
+interest_bins = [0, 3, 6, 9, 12, float('inf')]
+interest_labels = ['Very Low', 'Low', 'Medium', 'High', 'Very High']
+df['interest_rate_category'] = pd.cut(df['interest_rate'], bins=interest_bins, labels=interest_labels)
+
+# Analyze default rates by loan amount category
+print("\n=== Default Rate by Loan Amount Category ===")
+loan_cat_analysis = df.groupby('loan_amount_category')['loan_status'].agg(['mean', 'count'])
+print(loan_cat_analysis)
+
+# Analyze default rates by interest rate category
+print("\n=== Default Rate by Interest Rate Category ===")
+interest_cat_analysis = df.groupby('interest_rate_category')['loan_status'].agg(['mean', 'count'])
+print(interest_cat_analysis)
+
+# 5. Multi-level groupby for deeper insights
+print("\n=== Region and Loan Amount Category Analysis ===")
+region_loan_analysis = df.groupby(['region', 'loan_amount_category'])['loan_status'].mean().unstack()
+print(region_loan_analysis)
+
+# Visualize the multi-level insights
+plt.figure(figsize=(14, 8))
+sns.heatmap(region_loan_analysis, annot=True, cmap='YlGnBu', fmt='.2f')
+plt.title('Default Rate by Region and Loan Amount Category')
+plt.show()
+
+# 6. Group by country and interest rate category
+print("\n=== Country and Interest Rate Category Analysis ===")
+country_interest_analysis = df.groupby(['country', 'interest_rate_category'])['loan_status'].mean().unstack()
+print(country_interest_analysis)
+
+plt.figure(figsize=(14, 8))
+sns.heatmap(country_interest_analysis, annot=True, cmap='YlOrRd', fmt='.2f')
+plt.title('Default Rate by Country and Interest Rate Category')
+plt.show()
+
+# 7. Analyzing environmental factors
+# Handle missing values for this analysis
+df_env = df.copy()
+imputer = SimpleImputer(strategy='median')
+df_env[['emissions', 'electricity_use']] = imputer.fit_transform(df_env[['emissions', 'electricity_use']])
+
+# Create bins for emissions
+emission_bins = [0, df_env['emissions'].quantile(0.25), 
+                df_env['emissions'].quantile(0.5), 
+                df_env['emissions'].quantile(0.75), float('inf')]
+emission_labels = ['Low', 'Medium-Low', 'Medium-High', 'High']
+df_env['emission_category'] = pd.cut(df_env['emissions'], bins=emission_bins, labels=emission_labels)
+
+# Create bins for electricity use
+elec_bins = [0, df_env['electricity_use'].quantile(0.25), 
+            df_env['electricity_use'].quantile(0.5), 
+            df_env['electricity_use'].quantile(0.75), float('inf')]
+elec_labels = ['Low', 'Medium-Low', 'Medium-High', 'High']
+df_env['electricity_category'] = pd.cut(df_env['electricity_use'], bins=elec_bins, labels=elec_labels)
+
+# Analyze default rates by emission category
+print("\n=== Default Rate by Emission Category ===")
+emission_analysis = df_env.groupby('emission_category')['loan_status'].agg(['mean', 'count'])
+print(emission_analysis)
+
+# Analyze default rates by electricity use category
+print("\n=== Default Rate by Electricity Use Category ===")
+elec_analysis = df_env.groupby('electricity_category')['loan_status'].agg(['mean', 'count'])
+print(elec_analysis)
+
+# 8. Cross-tabulation analysis for categorical variables
+print("\n=== Cross-tabulation: Region vs Loan Status ===")
+region_cross = pd.crosstab(df['region'], df['loan_status'], normalize='index')
+print(region_cross)
+
+print("\n=== Cross-tabulation: Country vs Loan Status ===")
+country_cross = pd.crosstab(df['country'], df['loan_status'], normalize='index')
+print(country_cross)
+
+# 9. Advanced aggregation with multiple statistics
+print("\n=== Advanced Region Analysis ===")
+advanced_region = df.groupby('region').agg({
+    'loan_status': lambda x: x.sum() / len(x),  # Default rate
+    'loan_amount': [np.mean, np.median, np.std, lambda x: x.quantile(0.75) - x.quantile(0.25)],  # IQR
+    'interest_rate': [np.mean, np.median, np.std],
+    'loan_term': np.median
+}).round(2)
+print(advanced_region)
+
+# 10. Distribution of loan amounts by default status within each region
+plt.figure(figsize=(15, 10))
+for i, region in enumerate(df['region'].unique()):
+    plt.subplot(2, 3, i+1)
+    region_data = df[df['region'] == region]
+    sns.histplot(data=region_data, x='loan_amount', hue='loan_status', bins=20, 
+                element='step', common_norm=False, stat='density')
+    plt.title(f'Loan Amount Distribution in {region}')
+    plt.xlim(0, df['loan_amount'].quantile(0.95))
+plt.tight_layout()
+plt.show()
+
+# 11. Statistical test for significance between default rates in regions
+print("\n=== Statistical Tests for Regional Default Rates ===")
+regions = df['region'].unique()
+for i in range(len(regions)):
+    for j in range(i+1, len(regions)):
+        region1 = regions[i]
+        region2 = regions[j]
+        
+        # Get default rates as binary arrays
+        defaults1 = df[df['region'] == region1]['loan_status'].values
+        defaults2 = df[df['region'] == region2]['loan_status'].values
+        
+        # Perform chi-square test for independence
+        contingency = pd.crosstab(df[df['region'].isin([region1, region2])]['region'],
+                                 df[df['region'].isin([region1, region2])]['loan_status'])
+        chi2, p, dof, expected = stats.chi2_contingency(contingency)
+        
+        print(f"{region1} vs {region2}: Chi-square={chi2:.2f}, p-value={p:.4f}")
+        if p < 0.05:
+            print(f"  Significant difference in default rates between {region1} and {region2}")
+        else:
+            print(f"  No significant difference in default rates between {region1} and {region2}")
+
+#3
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.inspection import permutation_importance
+import warnings
+warnings.filterwarnings('ignore')
+
+# Continue with the same dataframe from previous code
+# If you're running this separately, recreate or load your data first
+
+# 1. Feature importance analysis
+print("=== Feature Importance Analysis ===")
+
+# Prepare data for modeling
+# Handle missing values
+df_model = df.copy()
+for col in ['emissions', 'electricity_use', 'credit_score', 'income']:
+    df_model[col] = df_model[col].fillna(df_model[col].median())
+
+# Convert categorical variables to numeric
+df_model = pd.get_dummies(df_model, columns=['region', 'country'], drop_first=True)
+
+# Define features and target
+X = df_model.drop(['loan_status', 'loan_amount_category', 'interest_rate_category'], axis=1)
+y = df_model['loan_status']
+
+# Train a Random Forest model to get feature importance
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+rf = RandomForestClassifier(n_estimators=100, random_state=42)
+rf.fit(X_train, y_train)
+
+# Get feature importances
+importances = pd.DataFrame({'feature': X.columns, 'importance': rf.feature_importances_})
+importances = importances.sort_values('importance', ascending=False)
+print(importances.head(10))
+
+# Visualize feature importances
+plt.figure(figsize=(12, 8))
+sns.barplot(x='importance', y='feature', data=importances.head(15))
+plt.title('Feature Importance for Loan Default Prediction')
+plt.tight_layout()
+plt.show()
+
+# 2. Cluster analysis to identify patterns
+print("\n=== Cluster Analysis ===")
+
+# Select numerical features for clustering
+cluster_features = ['loan_amount', 'interest_rate', 'loan_term', 'emissions', 
+                     'electricity_use', 'credit_score', 'income']
+df_cluster = df[cluster_features].copy()
+
+# Handle missing values
+for col in cluster_features:
+    df_cluster[col] = df_cluster[col].fillna(df_cluster[col].median())
+
+# Standardize the data
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(df_cluster)
+
+# Apply KMeans clustering
+kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
+df['cluster'] = kmeans.fit_predict(scaled_data)
+
+# Analyze clusters
+cluster_analysis = df.groupby('cluster').agg({
+    'loan_status': 'mean',
+    'loan_amount': 'mean',
+    'interest_rate': 'mean',
+    'loan_term': 'mean',
+    'emissions': 'mean',
+    'electricity_use': 'mean',
+    'credit_score': 'mean',
+    'income': 'mean',
+    'region': lambda x: x.value_counts().index[0],
+    'country': lambda x: x.value_counts().index[0]
+}).round(2)
+
+print("Cluster Analysis Results:")
+print(cluster_analysis)
+
+# Visualize clusters
+plt.figure(figsize=(14, 8))
+sns.scatterplot(data=df, x='loan_amount', y='interest_rate', hue='cluster', palette='viridis', s=100, alpha=0.7)
+plt.title('Loan Clusters by Amount and Interest Rate')
+plt.xlabel('Loan Amount')
+plt.ylabel('Interest Rate')
+plt.show()
+
+# 3. Advanced correlation analysis with filtered insights
+print("\n=== Advanced Correlation Analysis ===")
+
+# Compute correlations with loan_status
+correlations = df.select_dtypes(include=['float64', 'int64']).corr()['loan_status'].sort_values(ascending=False)
+print("Correlations with Loan Default:")
+print(correlations)
+
+# Stratified correlation analysis by region
+print("\n=== Stratified Correlation Analysis by Region ===")
+for region in df['region'].unique():
+    region_df = df[df['region'] == region]
+    region_corr = region_df.select_dtypes(include=['float64', 'int64']).corr()['loan_status'].sort_values(ascending=False)
+    print(f"\nCorrelations in {region}:")
+    print(region_corr.head(5))  # Top 5 correlations
+
+# 4. Risk assessment using groupby with multiple dimensions
+print("\n=== Multi-dimensional Risk Assessment ===")
+
+# Create risk segments (combining loan amount, interest rate, and region)
+df['risk_segment'] = df['region'] + '_' + df['loan_amount_category'].astype(str) + '_' + df['interest_rate_category'].astype(str)
+
+# Calculate default rates by risk segment
+risk_analysis = df.groupby('risk_segment')['loan_status'].agg(['mean', 'count']).sort_values('mean', ascending=False)
+print("Top 10 Highest Risk Segments:")
+print(risk_analysis.head(10))
+print("\nTop 10 Lowest Risk Segments:")
+print(risk_analysis.tail(10))
+
+# 5. Time series simulation for loans (since we don't have actual time data)
+# Let's simulate loan origination dates for time-based analysis
+print("\n=== Temporal Analysis Simulation ===")
+
+# Simulate loan origination dates over the past 2 years
+np.random.seed(42)
+start_date = pd.to_datetime('2023-01-01')
+end_date = pd.to_datetime('2025-05-01')
+days = (end_date - start_date).days
+df['origination_date'] = start_date + pd.to_timedelta(np.random.randint(0, days, size=len(df)), unit='D')
+df['month_year'] = df['origination_date'].dt.to_period('M')
+
+# Analyze default rates over time
+time_analysis = df.groupby('month_year')['loan_status'].agg(['mean', 'count']).reset_index()
+time_analysis['month_year'] = time_analysis['month_year'].astype(str)
+
+# Plot default rates over time
+plt.figure(figsize=(15, 6))
+plt.subplot(1, 2, 1)
+sns.lineplot(data=time_analysis, x='month_year', y='mean')
+plt.title('Default Rate Over Time')
+plt.xlabel('Month-Year')
+plt.ylabel('Default Rate')
+plt.xticks(rotation=90)
+
+plt.subplot(1, 2, 2)
+sns.lineplot(data=time_analysis, x='month_year', y='count')
+plt.title('Loan Volume Over Time')
+plt.xlabel('Month-Year')
+plt.ylabel('Number of Loans')
+plt.xticks(rotation=90)
+
+plt.tight_layout()
+plt.show()
+
+# 6. Multivariate analysis with cohorts
+print("\n=== Multivariate Cohort Analysis ===")
+
+# Create cohorts based on multiple features
+df['credit_cohort'] = pd.qcut(df['credit_score'].fillna(df['credit_score'].median()), 4, labels=['Low', 'Medium-Low', 'Medium-High', 'High'])
+df['income_cohort'] = pd.qcut(df['income'].fillna(df['income'].median()), 4, labels=['Low', 'Medium-Low', 'Medium-High', 'High'])
+
+# Analysis by credit score and income cohorts
+cohort_analysis = df.groupby(['credit_cohort', 'income_cohort'])['loan_status'].agg(['mean', 'count']).unstack()
+print(cohort_analysis)
+
+# Visualize the cohort analysis
+plt.figure(figsize=(12, 10))
+cohort_pivot = df.groupby(['credit_cohort', 'income_cohort'])['loan_status'].mean().unstack()
+sns.heatmap(cohort_pivot, annot=True, cmap='YlGnBu', fmt='.2f')
+plt.title('Default Rate by Credit Score and Income Cohorts')
+plt.xlabel('Income Cohort')
+plt.ylabel('Credit Score Cohort')
+plt.show()
+
+# 7. Environmental impact analysis
+print("\n=== Environmental Impact Analysis ===")
+
+# Look at the relationship between environmental factors and loan defaults
+env_analysis = df.groupby(['emission_category', 'electricity_category'])['loan_status'].agg(['mean', 'count']).unstack()
+print(env_analysis)
+
+# 8. Create a composite risk score
+print("\n=== Composite Risk Score Analysis ===")
+
+# Create a simple composite risk score based on key factors
+# First handle missing values
+for col in ['credit_score', 'income', 'emissions', 'electricity_use']:
+    df[col] = df[col].fillna(df[col].median())
+
+# Create standardized scores for key risk factors
+df['credit_score_std'] = (df['credit_score'] - df['credit_score'].mean()) / df['credit_score'].std()
+df['income_std'] = (df['income'] - df['income'].mean()) / df['income'].std()
+df['loan_amount_std'] = (df['loan_amount'] - df['loan_amount'].mean()) / df['loan_amount'].std()
+df['interest_rate_std'] = (df['interest_rate'] - df['interest_rate'].mean()) / df['interest_rate'].std()
+
+# Create composite risk score (higher = higher risk)
+df['risk_score'] = -df['credit_score_std'] - df['income_std'] + df['loan_amount_std'] + df['interest_rate_std']
+
+# Create risk categories
+df['risk_category'] = pd.qcut(df['risk_score'], 5, labels=['Very Low', 'Low', 'Medium', 'High', 'Very High'])
+
+# Analyze default rates by risk category
+risk_cat_analysis = df.groupby('risk_category')['loan_status'].agg(['mean', 'count'])
+print("Default Rate by Risk Category:")
+print(risk_cat_analysis)
+
+# Visualize risk category analysis
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+sns.barplot(x=risk_cat_analysis.index, y=risk_cat_analysis['mean'])
+plt.title('Default Rate by Risk Category')
+plt.ylabel('Default Rate')
+plt.xlabel('Risk Category')
+
+plt.subplot(1, 2, 2)
+sns.countplot(x='risk_category', hue='loan_status', data=df)
+plt.title('Loan Status by Risk Category')
+plt.xlabel('Risk Category')
+plt.ylabel('Count')
+plt.legend(['No Default', 'Default'])
+
+plt.tight_layout()
+plt.show()
+
+# 9. Region-specific feature importance
+print("\n=== Region-Specific Feature Importance ===")
+
+for region in df['region'].unique():
+    print(f"\nFeature Importance for {region}:")
+    
+    # Filter data for the specific region
+    region_df = df[df['region'] == region].copy()
+    
+    # Prepare data for modeling
+    region_X = region_df[['loan_amount', 'interest_rate', 'loan_term', 'credit_score', 'income', 
+                          'emissions', 'electricity_use']]
+    region_y = region_df['loan_status']
+    
+    # Handle missing values
+    for col in region_X.columns:
+        region_X[col] = region_X[col].fillna(region_X[col].median())
+    
+    # Train a simple random forest
+    if len(region_df) > 30 and len(np.unique(region_y)) > 1:  # Ensure enough data and both classes present
+        X_train, X_test, y_train, y_test = train_test_split(region_X, region_y, test_size=0.3, random_state=42)
+        rf = RandomForestClassifier(n_estimators=50, random_state=42)
+        rf.fit(X_train, y_train)
+        
+        # Get feature importances
+        importances = pd.DataFrame({'feature': region_X.columns, 'importance': rf.feature_importances_})
+        importances = importances.sort_values('importance', ascending=False)
+        print(importances)
+    else:
+        print(f"Not enough data for reliable model in {region}")
+
+
+
